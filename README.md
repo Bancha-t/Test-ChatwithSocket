@@ -6,7 +6,7 @@ This is a simple network chat program written in C++ using socket programming. I
 
 ### Step 1: Compile the Server
 
-After you have the `Server.cpp` file, compile the server program using the following command:
+After you have the `Server.cpp` file and `Client.cpp`, compile the server and Client program using the following command:
 ```bash
 g++ Server.cpp -o server -pthread
 g++ Client.cpp -o client -pthread  
