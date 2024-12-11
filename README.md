@@ -1,2 +1,2 @@
-<h2>g++ Server.cpp -o server -pthread</h2>
-<h2>g++ Client.cpp -o client -pthread</h2>
+<h4>g++ Server.cpp -o server -pthread</h4>
+<h4>g++ Client.cpp -o client -pthread</h4>
