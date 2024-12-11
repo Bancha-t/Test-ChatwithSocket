@@ -1,14 +1,24 @@
-# Network Chat Program
+Network Chat Program
 
-This is a simple network chat program written in C++ using socket programming. It consists of a server and multiple clients that can communicate with each other in real-time.
+This is a straightforward network messaging application developed in C++ utilizing socket programming. It consists of a server and several clients that are able to chat in real time.
 
 ## How to Compile
 
 ### Step 1: Compile the Server
 
-Once you have the `Server.cpp` and `Client.cpp` files, compile both the server and client programs with the following commands:
+Having obtained the `Server.cpp` and `Client.cpp` files, you need to generate both the server and client programs by using the following commands:
 ```bash
 g++ Server.cpp -o server -pthread
 g++ Client.cpp -o client -pthread
 ```
 ### Step 2: Run the Program
+
+fter compiling the programs, the next step is to run them as follows: 
+  1. Run the server: Open one terminal and type in the prompt below to launch the server:
+```bash
+./server
+```
+  2. Run the client: Open another terminal and execute the following command to start the client:
+```bash
+./client
+```
