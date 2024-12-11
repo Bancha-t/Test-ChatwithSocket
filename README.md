@@ -10,4 +10,5 @@ Once you have the `Server.cpp` and `Client.cpp` files, compile both the server a
 ```bash
 g++ Server.cpp -o server -pthread
 g++ Client.cpp -o client -pthread
-
+```
+### Step 2: Run the Program
