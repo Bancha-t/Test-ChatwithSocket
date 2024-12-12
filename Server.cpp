@@ -7,18 +7,18 @@
 #include <vector>
 #include <thread>
 #include <mutex>
-
+#include <sstream>
+#include <cstdlib>
 
 #define PORT 8080
 
-// สร้าง struct เพื่อเก็บข้อมูล client
 struct Client {
     int socket;
     std::string name;
 };
 
-// ประกาศ list ของ clients และ mutex เพื่อใช้ในการจัดการ thread
 std::vector<Client> clients;
+std::vector<std::string> chatHistory;
 std::mutex mtx;
 bool adminActive = false;
 
@@ -28,11 +28,13 @@ void handleClient(int client_socket, std::string client_name) {
         memset(buffer, 0, sizeof(buffer));
         int valread = recv(client_socket, buffer, sizeof(buffer), 0);
         if (valread > 0) {
-            // ส่งข้อความไปให้ทุก client ที่เชื่อมต่อ
+            std::string msg = client_name + ": " + buffer;
+
             mtx.lock();
-            for (auto& client : clients) {
+            chatHistory.push_back(msg);
+
+            for (const auto& client : clients) {
                 if (client.socket != client_socket) {
-                    std::string msg = client_name + ": " + buffer;
                     send(client.socket, msg.c_str(), msg.length(), 0);
                 }
             }
@@ -42,15 +44,26 @@ void handleClient(int client_socket, std::string client_name) {
         }
     }
 
-    // เมื่อ client ออกจากเซิร์ฟเวอร์
     mtx.lock();
     for (auto it = clients.begin(); it != clients.end(); ++it) {
         if (it->socket == client_socket) {
+            std::string disconnect_msg = it->name + " has left the chat.";
+            
+            for (const auto& client : clients) {
+                if (client.socket != client_socket) {
+                    send(client.socket, disconnect_msg.c_str(), disconnect_msg.length(), 0);
+                }
+            }
+            
             clients.erase(it);
             break;
         }
     }
     mtx.unlock();
+
+
+    close(client_socket);
+    std::cout << client_name << " disconnected.\n";
 }
 
 void kickClient(const std::string& client_name) {
@@ -59,8 +72,8 @@ void kickClient(const std::string& client_name) {
         if (it->name == client_name) {
             std::string kick_msg = "You have been kicked out from the server.";
             send(it->socket, kick_msg.c_str(), kick_msg.length(), 0);
-            close(it->socket); // ปิดการเชื่อมต่อของ client
-            clients.erase(it);  // ลบ client ออกจาก vector
+            close(it->socket);
+            clients.erase(it);
             std::cout << "Kicked out client: " << client_name << std::endl;
             break;
         }
@@ -68,6 +81,66 @@ void kickClient(const std::string& client_name) {
     mtx.unlock();
 }
 
+void handleInputCommand() {
+    while (true) {
+        std::string command;
+        std::getline(std::cin, command);
+
+        std::istringstream iss(command);
+        std::vector<std::string> tokens;
+        std::string token;
+        while (iss >> token) {
+            tokens.push_back(token);
+        }
+
+        if (tokens.empty()) continue;
+        if (tokens[0] == "clear") {
+            system("clear");
+            std::cout << "Server is running on port " << PORT << "...\n";
+        }
+        if (tokens[0] == "show") {
+            if (tokens.size() >= 2) {
+                if (tokens[1] == "-u") {
+                    mtx.lock();
+                    std::cout << "=== Connected Users ===" << std::endl;
+                    for (const auto& client : clients) {
+                        std::cout << "  " << client.name << std::endl;
+                    }
+                    mtx.unlock();
+                } else if (tokens[1] == "-c") {
+                    mtx.lock();
+                    std::cout << "=== Chat History ===" << std::endl;
+                    for (const auto& msg : chatHistory) {
+                        std::cout << "  " << msg << std::endl;
+                    }
+                    mtx.unlock();
+                } else {
+                    std::cout << "Unknown option for show command. Use -u (users) or -c (chat).\n";
+                }
+            } else {
+                std::cout << "Usage: show -u | show -c\n";
+            }
+        } 
+        else if (tokens[0] == "kick" && tokens.size() >= 2) {
+            kickClient(tokens[1]);
+        }
+        else if (tokens[0] == "close" && tokens.size() >= 2 && tokens[1] == "-s") {
+            std::cout << "Server shutting down...\n";
+
+            mtx.lock();
+            for (auto& client : clients) {
+                std::string shutdown_msg = "Server is shutting down.";
+                send(client.socket, shutdown_msg.c_str(), shutdown_msg.length(), 0);
+                close(client.socket);
+            }
+            clients.clear();
+            mtx.unlock();
+
+        exit(0); 
+    }
+    else continue;
+    }
+}
 
 int main() {
     int server_fd, new_socket;
@@ -95,29 +168,7 @@ int main() {
         return -1;
     }
 
-    // การทำงานใน thread หลักที่รอรับคำสั่งจาก admin
-    std::thread adminThread([&]() {
-        while (true) {
-            if (adminActive) {
-                std::string command;
-                std::cout << "Admin command: ";
-                std::getline(std::cin, command);
-
-                if (command.rfind("kick ", 0) == 0) {  // ถ้าคำสั่งคือ "kick <client_name>"
-                    std::string client_name = command.substr(5);  // ดึงชื่อ client
-                    kickClient(client_name);
-                }
-            } else {
-                std::string adminCommand;
-                std::cout << "Type 'admin' to activate admin commands.\n";
-                std::getline(std::cin, adminCommand);
-
-                if (adminCommand == "admin") {
-                    adminActive = true;
-                }
-            }
-        }
-    });
+    std::thread adminThread(handleInputCommand);
 
     while (true) {
         if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0) {
@@ -125,23 +176,19 @@ int main() {
             return -1;
         }
 
-        // รับชื่อของ client
         char buffer[1024] = {0};
         int valread = read(new_socket, buffer, sizeof(buffer));
         std::string client_name(buffer);
 
-        // เพิ่ม client เข้าในรายการ clients
         mtx.lock();
         clients.push_back({new_socket, client_name});
         mtx.unlock();
 
         std::cout << "New client connected: " << client_name << std::endl;
 
-        // สร้าง thread เพื่อรับข้อความจาก client
         std::thread(handleClient, new_socket, client_name).detach();
     }
 
     adminThread.join();
-
     return 0;
 }
