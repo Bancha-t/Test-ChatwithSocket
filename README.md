@@ -22,3 +22,5 @@ fter compiling the programs, the next step is to run them as follows:
 ```bash
 ./client
 ```
+version 0.0.0 Add a Server and Client for chat.
+version 0.0.1 Add a function to create a room and prepare for the attack. ?? There is a problem with creating the room.
