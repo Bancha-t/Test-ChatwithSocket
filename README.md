@@ -25,4 +25,4 @@ fter compiling the programs, the next step is to run them as follows:
 
 
 ##### version 0.0.0 Add a Server and Client for chat.
-##### version 0.0.1 Add a function to create a room and prepare for the attack. ?? There is a problem with creating the room.
+##### version 0.0.1 Add a function to create a room and add DOS attack for test. ?? There is a problem with creating the room.
